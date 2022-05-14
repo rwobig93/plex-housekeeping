@@ -4,3 +4,5 @@
 *.json
 # Virtual environment folder
 /venv
+# Idea directory
+/.idea
