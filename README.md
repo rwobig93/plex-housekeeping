@@ -3,6 +3,11 @@
 
 <hr/>
 
+# Clone the repo
+
+```shell
+git clone https://github.com/rwobig93/plex-housekeeping.git
+```
 
 <h3> Current scripts list </h3>
 
@@ -12,23 +17,17 @@
 
 # Plex Cleanup
 
-```diff
-- NOTE: Running the script for the first time will generate a config file you can modify called plex-cleanup-config.json
-```
-
-[//]: # (- is red, + is green, ! is orange, # is gray and @@ surround is purple and bold)
-
-<p> </p>
-
 ### Configuration
 
-| Setting Name                  | Required | Default    |           Example           | Detail                                                                                                                                                                                                             |
-|:------------------------------|----------|------------|:---------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| plex_url                      | Required |            | https://192.168.0.50:32400/ | URL pointing to your plex instance, can be public or private                                                                                                                                                       |
-| plex_api_key                  | Required |            |    aBCde12F3gh4IJklmno5     | API key from your Plex.TV account, please see [Finding Plex Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/) for more details                                      |
-| movie_libraries               | Optional | ["Movies"] |  ["Movies","4K","Hidden"]   | List of your movie library names, any not included will be skipped                                                                                                                                                 |
-| minimum_collection_size       | Optional | 2          |              1              | Number indicating collection size for cleanup, collection cleanup will look at any collections with less movies than the number indicated here, so 2 would mean all collections with 1 or 0 movies will be cleaned |
-| delete_undersized_collections | Optional | false      |            true             | Whether to delete collections based on the size indicated, if false then any collections that would be cleaned up will instead be printed to the terminal and logged, if true then collections will be deleted     |
+<h4>NOTE: Running the script for the first time will generate a config file you can modify called plex-cleanup-config.json</h3>
+
+| Setting Name                  | Default    |           Example           | Detail                                                                                                                                                                                                                       |
+|:------------------------------|------------|:---------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| plex_url                      |            | https://192.168.0.50:32400/ | Required: URL pointing to your plex instance, can be public or private                                                                                                                                                       |
+| plex_api_key                  |            |    aBCde12F3gh4IJklmno5     | Required: API key from your Plex.TV account, please see [Finding Plex Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/) for more details                                      |
+| movie_libraries               | ["Movies"] |  ["Movies","4K","Hidden"]   | Optional: List of your movie library names, any not included will be skipped                                                                                                                                                 |
+| minimum_collection_size       | 2          |              1              | Optional: Number indicating collection size for cleanup, collection cleanup will look at any collections with less movies than the number indicated here, so 2 would mean all collections with 1 or 0 movies will be cleaned |
+| delete_undersized_collections | false      |            true             | Optional: Whether to delete collections based on the size indicated, if false then any collections that would be cleaned up will instead be printed to the terminal and logged, if true then collections will be deleted     |
 
 <h3>Installing required dependencies</h3>
 

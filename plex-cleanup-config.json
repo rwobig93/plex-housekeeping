@@ -1,9 +1,0 @@
-{
-  "plex_url": "",
-  "plex_api_key": "",
-  "movie_libraries": [
-    "Movies"
-  ],
-  "minimum_collection_size": 2,
-  "delete_undersized_collections": false
-}
