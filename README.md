@@ -30,7 +30,7 @@ git clone https://github.com/rwobig93/plex-housekeeping.git
 | delete_undersized_collections        |           false            | Optional: Whether to delete collections based on the size indicated, if false then any collections that would be cleaned up will instead be printed to the terminal and logged, if true then collections will be deleted     |
 | enforce_movie_names_match_file_names |           false            | Optional: Whether to enforce movie names to match file names after sanitization                                                                                                                                              |
 | movie_name_enforce_skip_characters   |    [':', '-', '.', '?']    | Optional: List of characters to ignore when comparing movie title and movie file names for name enforcement                                                                                                                  |
-| enforce_movie_names_exclude          |             []             | Optional: List of movie title names to ignore when enforcing movie title and file names, each entry is case sensitive and checks by doing a 'contains' operation          <br/>                                              |
+| enforce_movie_names_exclude          |       ['Star Wars']        | Optional: List of movie title names to ignore when enforcing movie title and file names, each entry is case sensitive and checks by doing a 'contains' operation          <br/>                                              |
 
 <h3>Installing required dependencies</h3>
 
