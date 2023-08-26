@@ -208,7 +208,7 @@ def _parse_script_arguments() -> ScriptArgs:
 
     parser.add_argument('-c', '--continuous', action='store_true', help='Continue executing on an interval/schedule, standard run is one time')
     parser.add_argument('-i', '--interval', type=int, default=300, help='Used in conjunction with -c, Interval in seconds between runs, default is 300')
-    parser.add_argument('-e', '--environment', action='store_true', help='Execute with environment variables instead of config file')
+    parser.add_argument('-ev', '--environment', action='store_true', help='Execute with environment variables instead of config file')
     parser.add_argument('-lt', '--logterminal', action='store_true', help='Adds logging to terminal output as well as log file')
 
     parsed_args = parser.parse_args()
