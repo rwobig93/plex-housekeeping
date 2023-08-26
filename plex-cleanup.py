@@ -212,6 +212,7 @@ def _parse_script_arguments() -> ScriptArgs:
 
     converted_args = ScriptArgs()
     converted_args.continuous = getattr(parsed_args, 'continuous', converted_args.continuous)
+    converted_args.interval = os.environ.get("SCRIPT_INTERVAL", converted_args.interval)
     converted_args.interval = getattr(parsed_args, 'interval', converted_args.interval)
     converted_args.config_type = ConfigType.ENVIRONMENT if bool(getattr(parsed_args, 'environment', False)) else ConfigType.FILE
 
