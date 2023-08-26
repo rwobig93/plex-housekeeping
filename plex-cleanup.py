@@ -7,6 +7,7 @@ import os.path
 import re
 import time
 
+from ast import literal_eval
 import schedule
 import urllib3
 import sys
@@ -41,6 +42,7 @@ class ScriptArgs:
     continuous: bool = False
     interval: int = 300
     config_type: ConfigType = ConfigType.FILE
+    log_to_terminal: bool = False
 
 
 @dataclass(init=True, repr=True)
@@ -79,7 +81,7 @@ def _get_running_script_name() -> str:
     return str(os.path.basename(script_path)).replace('.py', '')
 
 
-def _configure_logging(log_to_terminal=False) -> None:
+def _configure_logging(log_to_terminal: bool = False) -> None:
     """ Configure the application logger """
     path_log_file = f"{_get_running_script_name()}.log"
     loglevel = logging.INFO
@@ -178,8 +180,8 @@ def _load_environment_variables():
         setattr(SETTINGS, class_property, environment_value)
 
 
-def _script_startup(config_type: ConfigType) -> None:
-    _configure_logging()
+def _script_startup(config_type: ConfigType, log_to_terminal: bool) -> None:
+    _configure_logging(log_to_terminal)
     logging.info("Starting script execution")
 
     if config_type == ConfigType.FILE:
@@ -207,6 +209,7 @@ def _parse_script_arguments() -> ScriptArgs:
     parser.add_argument('-c', '--continuous', action='store_true', help='Continue executing on an interval/schedule, standard run is one time')
     parser.add_argument('-i', '--interval', type=int, default=300, help='Used in conjunction with -c, Interval in seconds between runs, default is 300')
     parser.add_argument('-e', '--environment', action='store_true', help='Execute with environment variables instead of config file')
+    parser.add_argument('-lt', '--logterminal', action='store_true', help='Adds logging to terminal output as well as log file')
 
     parsed_args = parser.parse_args()
 
@@ -215,6 +218,7 @@ def _parse_script_arguments() -> ScriptArgs:
     converted_args.interval = os.environ.get("SCRIPT_INTERVAL", converted_args.interval)
     converted_args.interval = getattr(parsed_args, 'interval', converted_args.interval)
     converted_args.config_type = ConfigType.ENVIRONMENT if bool(getattr(parsed_args, 'environment', False)) else ConfigType.FILE
+    converted_args.log_to_terminal = getattr(parsed_args, 'logterminal', converted_args.log_to_terminal)
 
     return converted_args
 
@@ -240,7 +244,7 @@ def get_movie_collections(movie_libraries: list[str], collection_size_minimum: i
     """ Return all movie collections from the connected plex instance, filters collections based on the minimum collection size provided in the config file """
     collection_count_total = 0
     collection_filtered_list: list[Collection] = []
-    collection_size_min = collection_size_minimum
+    collection_size_min = int(collection_size_minimum)
     for movie_library in movie_libraries:
         try:
             logging.debug(f"Attempting to load collections from movie library: {movie_library}")
@@ -260,7 +264,7 @@ def get_movie_collections(movie_libraries: list[str], collection_size_minimum: i
                     logging.debug(f"Found movie collection matching provided criteria, appending to master list: {collection.title}")
                     collection_filtered_list.append(collection)
         except Exception as ex:
-            _error_occurred("Failure occurred attempting to parse move library", ex)
+            _error_occurred("Failure occurred attempting to parse movie library", ex)
 
     logging.info(f"Total filtered collections: {len(collection_filtered_list)}")
     logging.info(f"Total collection count enumerated: {collection_count_total} from {len(movie_libraries)} libraries")
@@ -343,6 +347,17 @@ def ensure_movie_name_matches_file(movies: list[Movie], make_changes: bool, char
     logging.info(f"Finished movie name enforcement, fixed {fixed_movie_count} movies")
 
 
+def _convert_environment_variable_types() -> None:
+    """ Converts the provided environment variable values to their respective values """
+    logging.debug("Attempting to convert environment variables to their respective types")
+
+    SETTINGS.movie_libraries = literal_eval(str(SETTINGS.movie_libraries))
+    SETTINGS.movie_name_enforce_skip_characters = literal_eval(str(SETTINGS.movie_name_enforce_skip_characters))
+    SETTINGS.enforce_movie_names_exclude = literal_eval(str(SETTINGS.enforce_movie_names_exclude))
+
+    logging.debug("Finished converting environment variables to their respective types")
+
+
 # endregion
 # region Script Execution
 
@@ -358,7 +373,9 @@ def main_continuous(script_args: ScriptArgs):
 
 def main(script_args: ScriptArgs):
     """ Main script execution point """
-    _script_startup(script_args.config_type)
+    _script_startup(script_args.config_type, script_args.log_to_terminal)
+    if script_args.config_type == ConfigType.ENVIRONMENT:
+        _convert_environment_variable_types()
 
     connect_to_plex_instance(SETTINGS.plex_url, SETTINGS.api_key)
 
@@ -378,7 +395,7 @@ if __name__ == '__main__':
     script_arguments = _parse_script_arguments()
 
     try:
-        if script_arguments.continuous:
+        if bool(script_arguments.continuous):
             main_continuous(script_arguments)
         else:
             main(script_arguments)

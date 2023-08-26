@@ -20,6 +20,10 @@ git clone https://github.com/rwobig93/plex-housekeeping.git
 ### Configuration
 
  > NOTE: Running the script for the first time will generate a config file you can modify called `plex-cleanup.json`
+ 
+ > NOTE: All variables below can be used as environment variables by using uppercase using the -e argument on the script
+
+ > NOTE: Using the -c argument for continuous running you can also provide -i <seconds> for the run interval or SCRIPT_INTERVAL as an environment variable
 
 | Setting Name                         |          Example           | Detail                                                                                                                                                                                                                       |
 |:-------------------------------------|:--------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
