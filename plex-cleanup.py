@@ -208,7 +208,7 @@ def _parse_script_arguments() -> ScriptArgs:
 
     parser.add_argument('-c', '--continuous', action='store_true', help='Continue executing on an interval/schedule, standard run is one time')
     parser.add_argument('-i', '--interval', type=int, default=300, help='Used in conjunction with -c, Interval in seconds between runs, default is 300')
-    parser.add_argument('-ev', '--environment', action='store_true', help='Execute with environment variables instead of config file')
+    parser.add_argument('-e', '--environment', action='store_true', help='Execute with environment variables instead of config file')
     parser.add_argument('-lt', '--logterminal', action='store_true', help='Adds logging to terminal output as well as log file')
 
     parsed_args = parser.parse_args()
@@ -385,8 +385,6 @@ def main(script_args: ScriptArgs):
     all_movies = get_all_movies(SETTINGS.movie_libraries)
     ensure_movie_name_matches_file(all_movies, SETTINGS.enforce_movie_names_match_file_names, SETTINGS.movie_name_enforce_skip_characters)
 
-    _script_exit()
-
 
 # endregion
 
@@ -399,5 +397,6 @@ if __name__ == '__main__':
             main_continuous(script_arguments)
         else:
             main(script_arguments)
+            _script_exit()
     except Exception as root_exception:
         _stop_running_script("Global script failure occurred", root_exception, 1)
