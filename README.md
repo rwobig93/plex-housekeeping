@@ -58,4 +58,4 @@ docker run registry.gitlab.wobigtech.net/public-registry/plex-cleanup:latest -e 
 
 <h3 align="center">Run using docker-compose</h3>
 
-See https://gitlab.wobigtech.net/public-registry/plex-cleanup/-/blob/main/example/docker-compose.yml for an example
+See [docker-compose.yml](https://gitlab.wobigtech.net/public-registry/plex-cleanup/-/blob/main/example/docker-compose.yml) for a real-world example
