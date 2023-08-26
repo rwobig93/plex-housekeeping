@@ -24,7 +24,7 @@ git clone https://github.com/rwobig93/plex-housekeeping.git
 | Setting Name                         |          Example           | Detail                                                                                                                                                                                                                       |
 |:-------------------------------------|:--------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | plex_url                             | https://192.168.1.1:32400/ | Required: URL pointing to your plex instance, can be public or private                                                                                                                                                       |
-| plex_api_key                         |    aBCde12F3gh4IJklmno5    | Required: API key from your Plex.TV account, please see [Finding Plex Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/) for more details                                      |
+| api_key                              |    aBCde12F3gh4IJklmno5    | Required: API key from your Plex.TV account, please see [Finding Plex Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/) for more details                                      |
 | movie_libraries                      |  ["Movies","4K","Hidden"]  | Optional: List of your movie library names, any not included will be skipped                                                                                                                                                 |
 | minimum_collection_size              |             2              | Optional: Number indicating collection size for cleanup, collection cleanup will look at any collections with less movies than the number indicated here, so 2 would mean all collections with 1 or 0 movies will be cleaned |
 | delete_undersized_collections        |           false            | Optional: Whether to delete collections based on the size indicated, if false then any collections that would be cleaned up will instead be printed to the terminal and logged, if true then collections will be deleted     |
@@ -38,8 +38,24 @@ git clone https://github.com/rwobig93/plex-housekeeping.git
 pip install -r requirements.txt
 ```
 
-<h3>Running the script</h3>
+<h3>Run the script manually</h3>
 
 ```shell
 python3 plex-cleanup.py
 ```
+
+<h3>Run using docker cli</h3>
+
+### Run in interactive mode
+```shell
+docker run registry.gitlab.wobigtech.net/public-registry/plex-cleanup:latest -e "PLEX_URL=https://192.168.1.1:32400/" -e "API_KEY=aBCde12F3gh4IJklmno5"
+```
+
+### Run in detached mode (non-interactively)
+```shell
+docker run registry.gitlab.wobigtech.net/public-registry/plex-cleanup:latest -e "PLEX_URL=https://192.168.1.1:32400/" -e "API_KEY=aBCde12F3gh4IJklmno5" -d
+```
+
+<h3>Run using docker-compose</h3>
+
+See https://gitlab.wobigtech.net/public-registry/plex-cleanup/-/blob/main/example/docker-compose.yml for an example
