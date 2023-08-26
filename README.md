@@ -35,11 +35,11 @@ git clone https://github.com/rwobig93/plex-housekeeping.git
 <h3>Installing required dependencies</h3>
 
 ```shell
-python -m pip install plexapi
+pip install -r requirements.txt
 ```
 
 <h3>Running the script</h3>
 
 ```shell
-python plex-cleanup.py
+python3 plex-cleanup.py
 ```

@@ -5,14 +5,18 @@ import json
 import logging
 import os.path
 import re
+import time
 
+import schedule
 import urllib3
 import sys
 from enum import Enum
 from dataclasses import dataclass, field, asdict
 from os.path import exists
 
+from argparse import ArgumentParser
 import requests
+
 from plexapi.server import PlexServer, Collection, Library
 from plexapi.video import Movie
 
@@ -27,9 +31,16 @@ class BaseClass:
         return asdict(self)
 
 
-class LogContentType(Enum):
-    STRING = 'string'
-    JSON = 'json'
+class ConfigType(Enum):
+    FILE = 'file'
+    ENVIRONMENT = 'environment'
+
+
+@dataclass(init=True, repr=True)
+class ScriptArgs:
+    continuous: bool = False
+    interval: int = 300
+    config_type: ConfigType = ConfigType.FILE
 
 
 @dataclass(init=True, repr=True)
@@ -40,8 +51,8 @@ class ScriptSettings(BaseClass):
     collection_size_minimum: int = 2
     delete_undersized_collections: bool = False
     enforce_movie_names_match_file_names: bool = False
-    movie_name_enforce_skip_characters: list['str'] = field(default_factory=lambda: [':', '-', '.', '?'])
-    enforce_movie_names_exclude: list['str'] = field(default_factory=list)
+    movie_name_enforce_skip_characters: list[str] = field(default_factory=lambda: [':', '-', '.', '?'])
+    enforce_movie_names_exclude: list[str] = field(default_factory=lambda: ['Star Wars'])
 
     def __post_init__(self) -> None:
         if len(self.plex_url) < 1:
@@ -54,34 +65,38 @@ class ScriptSettings(BaseClass):
 # region Globals
 
 
+FILE_ENCODING = 'utf-8'
 SETTINGS: ScriptSettings
 PLEX_INSTANCE: PlexServer
-FILE_ENCODING = 'utf-8'
 
 
 # endregion
-# region Functions
 # region Script Control
 
 
-def get_running_script_name() -> str:
+def _get_running_script_name() -> str:
     script_path = os.path.abspath(__file__)
     return str(os.path.basename(script_path)).replace('.py', '')
 
 
-def configure_logging() -> None:
+def _configure_logging(log_to_terminal=False) -> None:
     """ Configure the application logger """
-    path_log_file = f"{get_running_script_name()}.log"
+    path_log_file = f"{_get_running_script_name()}.log"
     loglevel = logging.INFO
 
-    if exists('./debug'):
+    if exists('./debug') or os.environ.get("LOGGING_DEBUG", None) is not None:
         loglevel = logging.DEBUG
 
-    logging.basicConfig(filename=path_log_file, encoding=FILE_ENCODING, level=loglevel, format='%(asctime)s::%(levelname)s:%(message)s')
+    if log_to_terminal:
+        log_handlers = [logging.StreamHandler(), logging.FileHandler(path_log_file)]
+    else:
+        log_handlers = [logging.FileHandler(path_log_file)]
+
+    logging.basicConfig(encoding=FILE_ENCODING, level=loglevel, format='%(asctime)s::%(levelname)s:%(message)s', handlers=log_handlers)
     logging.info('Logger initialized!')
 
 
-def stop_running_script(message: str, exception: Exception = None, error_code: int = 1) -> None:
+def _stop_running_script(message: str, exception: Exception = None, error_code: int = 1) -> None:
     """ Stop the running script with the provided message, exception and error code """
     if isinstance(exception, Exception):
         full_message = ("Script was stopped due to a critical failure =>"
@@ -90,35 +105,24 @@ def stop_running_script(message: str, exception: Exception = None, error_code: i
         full_message = f"Script was stopped due to a critical failure =>\n  {message}"
 
     logging.critical(full_message)
-    print(full_message)
 
-    script_exit(error_code)
+    _script_exit(error_code)
 
 
-def error_occurred(message: str, exception: Exception = None) -> None:
+def _error_occurred(message: str, exception: Exception = None) -> None:
     """ Convey error occurrence with the provided error message and exception if one is provided """
     if isinstance(exception, Exception):
         full_message = f"{message} =>\n  {exception} =>\n    {exception.with_traceback}"
         logging.error(full_message)
-        print(full_message)
     else:
-        print(message)
+        logging.error(message)
 
 
-def print_and_log_message(message: object, content_type: LogContentType = LogContentType.STRING) -> None:
-    """ Print and log the provided message """
-    content = str(message) if content_type == LogContentType.STRING else json.dumps(message, indent=4, default=str)
-
-    logging.info(content)
-    print(content)
-
-
-def create_config_file() -> None:
+def _create_config_file() -> None:
     """ Creates a default config file for modification """
-    path_config_file = f"{get_running_script_name()}.json"
+    path_config_file = f"{_get_running_script_name()}.json"
 
     try:
-
         if exists(path_config_file):
             os.remove(path_config_file)
             logging.info(f"Deleted existing config file: {path_config_file}")
@@ -127,26 +131,25 @@ def create_config_file() -> None:
 
         with open(path_config_file, 'w', encoding=FILE_ENCODING) as config_writer:
             json.dump(
-                ScriptSettings('https://plex-ip-or-hostname:32400/', '<insert_api_key_here>').to_dict(), config_writer)
+                ScriptSettings('https://plex-ip-or-hostname:32400/', '<insert_api_key_here>').to_dict(), config_writer, indent=4, default=str)
 
         logging.debug(f"Created default config file at: {os.path.abspath(path_config_file)}")
     except Exception as ex:
-        stop_running_script(
+        _stop_running_script(
             f"Error occurred attempting to create config file at {os.path.abspath(path_config_file)}", ex)
 
 
-def load_config_file() -> None:
+def _load_config_file() -> None:
     """ Loads the script config file """
-    path_config_file = f"{get_running_script_name()}.json"
+    path_config_file = f"{_get_running_script_name()}.json"
 
     logging.debug(f"Attempting to read config file: {path_config_file}")
     try:
         if exists(path_config_file):
             logging.info(f"Config file exists at {path_config_file}")
         else:
-            create_config_file()
+            _create_config_file()
             return_message = f"Config file wasn't found, created a new one at: {os.path.abspath(path_config_file)}"
-            print(return_message)
             logging.info(return_message)
             exit(0)
         with open(path_config_file, 'r', encoding=FILE_ENCODING) as config_reader:
@@ -154,24 +157,65 @@ def load_config_file() -> None:
             global SETTINGS
             SETTINGS = ScriptSettings(**loaded_config)
     except Exception as ex:
-        stop_running_script(f"Failure occurred attempting to load the config file: {path_config_file}", ex)
+        _stop_running_script(f"Failure occurred attempting to load the config file: {path_config_file}", ex)
 
 
-def script_startup() -> None:
-    configure_logging()
-    print_and_log_message("Starting script execution")
+def _load_environment_variables():
+    """ Loads script configuration from environment variables """
+    logging.debug("Attempting to read script configuration from environment variables")
+    global SETTINGS
+    SETTINGS = ScriptSettings('example.com', 'default_token')
 
-    load_config_file()
+    for class_property in dir(SETTINGS):
+        if callable(getattr(SETTINGS, class_property)) or class_property.startswith('_'):
+            continue
+
+        environment_value = os.environ.get(class_property.upper(), None)
+        if environment_value is None:
+            continue
+
+        logging.debug(f"Setting script config from environment: {class_property} => {environment_value}")
+        setattr(SETTINGS, class_property, environment_value)
 
 
-def script_exit(error_code: int = 0) -> None:
-    print_and_log_message('Finished script execution')
+def _script_startup(config_type: ConfigType) -> None:
+    _configure_logging()
+    logging.info("Starting script execution")
+
+    if config_type == ConfigType.FILE:
+        _load_config_file()
+    elif config_type == ConfigType.ENVIRONMENT:
+        _load_environment_variables()
+
+
+def _script_exit(error_code: int = 0) -> None:
+    logging.info('Finished script execution')
 
     sys.exit(error_code)
 
 
 # endregion
 # region Script Core
+
+
+def _parse_script_arguments() -> ScriptArgs:
+    parser = ArgumentParser(description='Plex Cleanup Script For Housekeeping / Maintenance',
+                            usage="python3 plex-cleanup.py  # Will generate a config file on first run to fill out, then run normally once config file is filled\n"
+                                  "python3 plex-cleanup.py -environment  # Will pull from environment variables (API_KEY for example) instead of the config file\n"
+                                  "python3 plex-cleanup.py -c -e -i 600  # Will run continuously every hour using environment variables")
+
+    parser.add_argument('-c', '--continuous', action='store_true', help='Continue executing on an interval/schedule, standard run is one time')
+    parser.add_argument('-i', '--interval', type=int, default=300, help='Used in conjunction with -c, Interval in seconds between runs, default is 300')
+    parser.add_argument('-e', '--environment', action='store_true', help='Execute with environment variables instead of config file')
+
+    parsed_args = parser.parse_args()
+
+    converted_args = ScriptArgs()
+    converted_args.continuous = getattr(parsed_args, 'continuous', converted_args.continuous)
+    converted_args.interval = getattr(parsed_args, 'interval', converted_args.interval)
+    converted_args.config_type = ConfigType.ENVIRONMENT if bool(getattr(parsed_args, 'environment', False)) else ConfigType.FILE
+
+    return converted_args
 
 
 def connect_to_plex_instance(plex_url: str, plex_key: str) -> None:
@@ -188,7 +232,7 @@ def connect_to_plex_instance(plex_url: str, plex_key: str) -> None:
 
         logging.info(f"Successfully connected to plex instance at: {plex_url}")
     except Exception as ex:
-        stop_running_script("Failure occurred attempting to connect to the provided plex url", ex)
+        _stop_running_script("Failure occurred attempting to connect to the provided plex url", ex)
 
 
 def get_movie_collections(movie_libraries: list[str], collection_size_minimum: int) -> list[Collection]:
@@ -201,7 +245,7 @@ def get_movie_collections(movie_libraries: list[str], collection_size_minimum: i
             logging.debug(f"Attempting to load collections from movie library: {movie_library}")
 
             collections = PLEX_INSTANCE.library.section(movie_library).search(libtype='collection')
-            print_and_log_message(f"Library [{movie_library}] has a collection count of [{len(collections)}]")
+            logging.info(f"Library [{movie_library}] has a collection count of [{len(collections)}]")
 
             logging.debug(f"Successfully grabbed movie library [{movie_library}], attempting to enumerate [{len(collections)}] collections")
 
@@ -215,10 +259,10 @@ def get_movie_collections(movie_libraries: list[str], collection_size_minimum: i
                     logging.debug(f"Found movie collection matching provided criteria, appending to master list: {collection.title}")
                     collection_filtered_list.append(collection)
         except Exception as ex:
-            error_occurred("Failure occurred attempting to parse move library", ex)
+            _error_occurred("Failure occurred attempting to parse move library", ex)
 
-    print_and_log_message(f"Total filtered collections: {len(collection_filtered_list)}")
-    print_and_log_message(f"Total collection count enumerated: {collection_count_total} from {len(movie_libraries)} libraries")
+    logging.info(f"Total filtered collections: {len(collection_filtered_list)}")
+    logging.info(f"Total collection count enumerated: {collection_count_total} from {len(movie_libraries)} libraries")
     return collection_filtered_list
 
 
@@ -230,7 +274,7 @@ def _delete_movie_collection(collection: Collection) -> None:
         collection.delete()
         logging.info(f"Deleted movie collection: {collection_name}")
     except Exception as ex:
-        error_occurred(f"Failure occurred attempting to delete the provided collection: {collection.title}", ex)
+        _error_occurred(f"Failure occurred attempting to delete the provided collection: {collection.title}", ex)
 
 
 def take_action_on_movie_collections(collections: list[Collection], delete_undersized_collections: bool = False) -> None:
@@ -239,7 +283,7 @@ def take_action_on_movie_collections(collections: list[Collection], delete_under
         if delete_undersized_collections:
             _delete_movie_collection(collection)
         else:
-            print_and_log_message(f"We would delete this undersized movie collection: {collection.title}")
+            logging.info(f"We would delete this undersized movie collection: {collection.title}")
 
 
 def get_all_movies(movie_libraries: list[str]) -> list[Movie]:
@@ -295,15 +339,25 @@ def ensure_movie_name_matches_file(movies: list[Movie], make_changes: bool, char
             fixed_movie_count += 1
             logging.info(f"Updated Movie Title & Sort Title: {movie.title} => {sanitized_file_name}")
 
-    print_and_log_message(f"Finished movie name enforcement, fixed {fixed_movie_count} movies")
+    logging.info(f"Finished movie name enforcement, fixed {fixed_movie_count} movies")
+
 
 # endregion
-# endregion
+# region Script Execution
 
 
-def main():
+def main_continuous(script_args: ScriptArgs):
+    """ Main script execution point for continuous execution """
+    schedule.every(script_args.interval).seconds.do(main(script_args))
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+
+def main(script_args: ScriptArgs):
     """ Main script execution point """
-    script_startup()
+    _script_startup(script_args.config_type)
 
     connect_to_plex_instance(SETTINGS.plex_url, SETTINGS.api_key)
 
@@ -313,11 +367,19 @@ def main():
     all_movies = get_all_movies(SETTINGS.movie_libraries)
     ensure_movie_name_matches_file(all_movies, SETTINGS.enforce_movie_names_match_file_names, SETTINGS.movie_name_enforce_skip_characters)
 
-    script_exit()
+    _script_exit()
+
+
+# endregion
 
 
 if __name__ == '__main__':
+    script_arguments = _parse_script_arguments()
+
     try:
-        main()
+        if script_arguments.continuous:
+            main_continuous(script_arguments)
+        else:
+            main(script_arguments)
     except Exception as root_exception:
-        stop_running_script("Global script failure occurred", root_exception, 1)
+        _stop_running_script("Global script failure occurred", root_exception, 1)

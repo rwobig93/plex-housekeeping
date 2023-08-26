@@ -1,0 +1,4 @@
+schedule~=1.2.0
+urllib3~=2.0.4
+requests~=2.31.0
+PlexAPI~=4.15.0
