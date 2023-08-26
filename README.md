@@ -9,7 +9,7 @@
 git clone https://github.com/rwobig93/plex-housekeeping.git
 ```
 
-<h3> Current scripts list </h3>
+<h3 align="center"> Current scripts list </h3>
 
 | Script Name     |          Script Options           |                  Purpose                  |
 |:----------------|:---------------------------------:|:-----------------------------------------:|
@@ -32,19 +32,19 @@ git clone https://github.com/rwobig93/plex-housekeeping.git
 | movie_name_enforce_skip_characters   |    [':', '-', '.', '?']    | Optional: List of characters to ignore when comparing movie title and movie file names for name enforcement                                                                                                                  |
 | enforce_movie_names_exclude          |       ['Star Wars']        | Optional: List of movie title names to ignore when enforcing movie title and file names, each entry is case sensitive and checks by doing a 'contains' operation          <br/>                                              |
 
-<h3>Installing required dependencies</h3>
+<h3 align="center">Installing required dependencies</h3>
 
 ```shell
 pip install -r requirements.txt
 ```
 
-<h3>Run the script manually</h3>
+<h3 align="center">Run the script manually</h3>
 
 ```shell
 python3 plex-cleanup.py
 ```
 
-<h3>Run using docker cli</h3>
+<h3 align="center">Run using docker cli</h3>
 
 ### Run in interactive mode
 ```shell
@@ -56,6 +56,6 @@ docker run registry.gitlab.wobigtech.net/public-registry/plex-cleanup:latest -e 
 docker run registry.gitlab.wobigtech.net/public-registry/plex-cleanup:latest -e "PLEX_URL=https://192.168.1.1:32400/" -e "API_KEY=aBCde12F3gh4IJklmno5" -d
 ```
 
-<h3>Run using docker-compose</h3>
+<h3 align="center">Run using docker-compose</h3>
 
 See https://gitlab.wobigtech.net/public-registry/plex-cleanup/-/blob/main/example/docker-compose.yml for an example
