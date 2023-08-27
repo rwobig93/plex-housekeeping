@@ -1,6 +1,6 @@
 # region Imports
-
-
+import math
+from datetime import datetime
 import json
 import logging
 import os.path
@@ -69,6 +69,7 @@ class ScriptSettings(BaseClass):
 
 FILE_ENCODING = 'utf-8'
 SETTINGS: ScriptSettings
+
 PLEX_INSTANCE: PlexServer
 
 
@@ -226,7 +227,7 @@ def _parse_script_arguments() -> ScriptArgs:
 def connect_to_plex_instance(plex_url: str, plex_key: str) -> None:
     """ Connect to the specified plex url and auth with the provided api key and return the instance object """
     try:
-        logging.info(f"Attempting to connect to plex instance at: {plex_url}")
+        logging.debug(f"Attempting to connect to plex instance at: {plex_url}")
 
         session = requests.Session()
         session.verify = False
@@ -266,7 +267,7 @@ def get_movie_collections(movie_libraries: list[str], collection_size_minimum: i
         except Exception as ex:
             _error_occurred("Failure occurred attempting to parse movie library", ex)
 
-    logging.info(f"Total filtered collections: {len(collection_filtered_list)}")
+    logging.info(f"Total collections found to be removed: {len(collection_filtered_list)}")
     logging.info(f"Total collection count enumerated: {collection_count_total} from {len(movie_libraries)} libraries")
     return collection_filtered_list
 
@@ -362,20 +363,8 @@ def _convert_environment_variable_types() -> None:
 # region Script Execution
 
 
-def main_continuous(script_args: ScriptArgs):
-    """ Main script execution point for continuous execution """
-    schedule.every(script_args.interval).seconds.do(main(script_args))
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-
-def main(script_args: ScriptArgs):
+def main():
     """ Main script execution point """
-    _script_startup(script_args.config_type, script_args.log_to_terminal)
-    if script_args.config_type == ConfigType.ENVIRONMENT:
-        _convert_environment_variable_types()
 
     connect_to_plex_instance(SETTINGS.plex_url, SETTINGS.api_key)
 
@@ -384,6 +373,24 @@ def main(script_args: ScriptArgs):
 
     all_movies = get_all_movies(SETTINGS.movie_libraries)
     ensure_movie_name_matches_file(all_movies, SETTINGS.enforce_movie_names_match_file_names, SETTINGS.movie_name_enforce_skip_characters)
+    logging.info("Finished a round of plex cleanup work")
+
+
+def main_continuous(script_args: ScriptArgs):
+    """ Main script execution point for continuous execution """
+    main()
+    schedule.every(script_args.interval).seconds.do(lambda: main())
+
+    while True:
+        schedule.run_pending()
+        jobs = schedule.get_jobs()
+        next_run = jobs[0].next_run
+        next_run_time_left = next_run - datetime.now()
+
+        logging.info(f"Next job will run at {next_run} in {math.ceil(next_run_time_left.total_seconds())} seconds")
+
+        logging.debug(f"Waiting {next_run_time_left.total_seconds()} seconds until the next run...")
+        time.sleep(next_run_time_left.total_seconds())
 
 
 # endregion
@@ -393,10 +400,14 @@ if __name__ == '__main__':
     script_arguments = _parse_script_arguments()
 
     try:
+        _script_startup(script_arguments.config_type, script_arguments.log_to_terminal)
+        if script_arguments.config_type == ConfigType.ENVIRONMENT:
+            _convert_environment_variable_types()
+
         if bool(script_arguments.continuous):
             main_continuous(script_arguments)
         else:
-            main(script_arguments)
+            main()
             _script_exit()
     except Exception as root_exception:
         _stop_running_script("Global script failure occurred", root_exception, 1)
